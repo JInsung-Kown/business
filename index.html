@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <title>고소작업대 현장·업체 관리 툴</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet"/>
+  <style>
+    body { font-family: Pretendard, sans-serif; background: #f5f6fa; margin: 0; padding: 36px; }
+    h1 { color: #1462ff; font-size: 25px; margin-bottom: 24px; }
+    .flex { display: flex; gap: 32px; }
+    .category { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 2px 10px #0001; min-width: 200px; }
+    .category h2 { font-size: 16px; margin-bottom: 18px; font-weight:700; }
+    .category-btn { display: block; width: 100%; border: none; border-radius: 9px; padding: 14px 0; font-size: 1em; cursor: pointer; background: #eaf1ff; color: #222; font-weight: 600; margin-bottom: 12px; transition: 0.15s; }
+    .category-btn.active { background: #1462ff; color: #fff; }
+    .panel { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px #0001; padding: 24px; flex: 1; min-width: 320px; }
+    /* --- 영업관리 스타일 --- */
+    .search-row { display: flex; gap: 8px; align-items: center; margin-bottom: 18px; }
+    .search-row input { padding: 7px 14px; font-size: 1em; border-radius: 8px; border: 1px solid #bbb; width: 220px;}
+    .filter-btn { background: #eaf1ff; color: #222; border: none; border-radius: 8px; font-size: 1em; padding: 8px 18px; cursor: pointer; margin-left: 5px;}
+    .filter-btn.active { background: #1462ff; color: #fff; font-weight: bold;}
+    .add-row { display: flex; gap: 10px; margin-bottom: 13px; flex-wrap: wrap;}
+    .add-row input, .add-row select { font-size: 1em; padding: 7px; border-radius: 8px; border: 1px solid #ccc;}
+    .add-row input[type=email] { width: 120px;}
+    .add-row input[type=text] { width: 100px;}
+    .add-row select { width: 80px;}
+    .add-row .add-site-btn, .add-row .add-memo-btn { background: #eaf1ff; border: none; border-radius: 6px; padding: 5px 11px; font-size: 0.95em; cursor: pointer;}
+    .add-row .add-contact-btn { background: #1462ff; color: #fff; border: none; border-radius: 6px; font-size: 1em; padding: 7px 17px; cursor: pointer;}
+    .site-list, .memo-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px;}
+    .site-tag, .memo-tag { background: #d0ebff; color: #156dff; border-radius: 7px; padding: 3px 9px; font-size: 0.98em; display: inline-block; }
+    .site-tag .remove, .memo-tag .remove { margin-left: 4px; color: #ff5c5c; font-weight: bold; cursor: pointer;}
+    table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 2px 8px #0001; border-radius: 12px; overflow: hidden;}
+    th, td { padding: 10px 8px; border: 1px solid #eee; font-size: 1em; }
+    th { background: #f2f7ff; }
+    td.email { width: 9%; min-width: 80px; }
+    td.phone { width: 9%; min-width: 80px; }
+    td.sites, td.memos { width: 23%; }
+    .action-btn { background: #eaf1ff; border: none; border-radius: 5px; color: #1462ff; font-size: 0.97em; padding: 5px 13px; cursor: pointer; margin-right:4px;}
+    .action-btn.save { background: #1462ff; color: #fff;}
+    .action-btn.cancel { background: #bbb; color: #fff;}
+    .action-btn.delete { background: #f99; color: #fff;}
+    .edit-tags-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px;}
+    .edit-tags-list .tag-edit { background: #e2f0ff; color: #1462ff; border-radius: 7px; padding: 3px 7px; display: inline-flex; align-items: center;}
+    .edit-tags-list .remove { margin-left: 3px; color: #ff5c5c; font-weight: bold; cursor: pointer;}
+    .edit-tag-input { width: 70px; padding: 2px 5px; margin-right: 3px;}
+    /* --- 방문일정관리 스타일 (수정) --- */
+    @media (max-width: 900px) {
+      .flex { flex-direction: column; gap: 0; }
+      .category { margin-bottom: 12px; }
+      .calendar-panel, .calendar-wrap { width: 100% !important; min-width: 0 !important; }
+    }
+    .calendar-row { display: flex; gap: 22px; align-items: flex-start;}
+    @media (max-width: 900px) {
+      .calendar-row { flex-direction: column; gap: 0; }
+    }
+    .calendar-panel { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px #0001; padding: 24px; width: 340px; min-width: 240px;}
+    .calendar-panel h2 { font-size: 18px; margin-bottom: 14px; }
+    .calendar-panel label { display: block; margin-bottom: 6px; font-weight: 600; }
+    .calendar-panel input, .calendar-panel select, .calendar-panel textarea { width: 100%; font-size: 1em; padding: 8px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+    .calendar-panel textarea { min-height: 4.5em; height: 6em; font-size: 1.18em; }
+    .calendar-panel button { background: #1462ff; color: #fff; border: none; border-radius: 6px; padding: 10px 0; width: 100%; font-size: 1em; cursor: pointer; margin-bottom: 16px; }
+    .list-box { margin-bottom: 16px; }
+    .list-box strong { display: block; margin-bottom: 6px; }
+    .list-box ul { list-style: none; padding: 0; margin: 0; }
+    .list-box li { background: #f5faff; padding: 8px; border-radius: 4px; margin-bottom: 4px; font-size: 0.97em; }
+    .calendar-wrap { flex: 1; background: #fff; border-radius: 14px; box-shadow: 0 2px 10px #0001; padding: 24px; min-width: 340px;}
+    /* 방문일정관리 작은 버튼 스타일 */
+    .cal-btn { 
+      background: #eaf1ff; 
+      color: #1462ff; 
+      border: none; 
+      border-radius: 5px; 
+      font-size: 0.82em !important; 
+      padding: 3px 8px !important; 
+      margin-left: 4px;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    .cal-btn.red { color: #fff; background: #ff8686; }
+    .cal-btn.blue { color: #fff; background: #1462ff; }
+  </style>
+</head>
+<body>
+  <h1>고소작업대 현장·업체 관리 툴</h1>
+  <div class="flex">
+    <div class="category">
+      <h2>카테고리</h2>
+      <button id="btnSales" class="category-btn active" onclick="switchTab('sales')">영업관리</button>
+      <button id="btnSchedule" class="category-btn" onclick="switchTab('schedule')">방문 일정 관리</button>
+    </div>
+    <div id="salesPanel" class="panel">
+      <div class="search-row">
+        <input id="companySearch" placeholder="회사명 입력">
+        <button class="filter-btn active" id="filterSojang" onclick="setFilter('소장')">소장</button>
+        <button class="filter-btn" id="filterGongmu" onclick="setFilter('공무')">공무</button>
+      </div>
+      <div class="add-row">
+        <input id="inputCompany" placeholder="회사명">
+        <select id="inputPosition">
+          <option value="소장">소장</option>
+          <option value="공무">공무</option>
+        </select>
+        <input id="inputName" placeholder="이름">
+        <input id="inputPhone" placeholder="연락처">
+        <input id="inputEmail" placeholder="이메일" type="email">
+        <input id="inputSite" placeholder="현장명">
+        <button class="add-site-btn" onclick="addSiteTag()">+현장</button>
+        <input id="inputMemo" placeholder="비고">
+        <button class="add-memo-btn" onclick="addMemoTag()">+비고</button>
+        <button class="add-contact-btn" onclick="addContact()">추가</button>
+      </div>
+      <div class="site-list" id="siteTagList"></div>
+      <div class="memo-list" id="memoTagList"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>회사</th>
+            <th>직급</th>
+            <th>이름</th>
+            <th class="phone">연락처</th>
+            <th class="email">이메일</th>
+            <th class="sites">현장</th>
+            <th class="memos">비고</th>
+            <th>관리</th>
+          </tr>
+        </thead>
+        <tbody id="contactTableBody"></tbody>
+      </table>
+    </div>
+    <!-- 방문일정관리 패널, 캘린더+입력폼+리스트를 가로(혹은 세로)로 배치 -->
+    <div id="calendarSection" style="display:none; width:100%;">
+      <div class="calendar-row">
+        <div id="calendarPanel" class="calendar-panel">
+          <h2 id="panelTitle">날짜를 선택하세요</h2>
+          <label for="calSite">현장명</label>
+          <input id="calSite" placeholder="현장명" />
+          <label for="calAddr">주소</label>
+          <input id="calAddr" placeholder="상세주소" />
+          <label for="calDesc">내용/메모</label>
+          <textarea id="calDesc" placeholder="내용, 특이사항 등"></textarea>
+          <label for="calGap">재방문 예약</label>
+          <select id="calGap">
+            <option value="1">1개월 후</option>
+            <option value="2">2개월 후</option>
+            <option value="3">3개월 후</option>
+            <option value="5" selected>5개월 후</option>
+            <option value="6">6개월 후</option>
+            <option value="9">9개월 후</option>
+            <option value="12">12개월 후</option>
+          </select>
+          <button id="addBtn">일정추가</button>
+          <div class="list-box">
+            <strong>등록된 방문 일정 (<span id="visitCount">0</span>개)</strong>
+            <ul id="visitList"><li>없음</li></ul>
+          </div>
+          <div class="list-box">
+            <strong>재방문 예약 일정 (<span id="revisitCount">0</span>개)</strong>
+            <ul id="revisitList"><li>없음</li></ul>
+          </div>
+        </div>
+        <div id="calendarWrap" class="calendar-wrap">
+          <div id="calendarContainer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script>
+    // ---- 탭 전환
+    function switchTab(tab) {
+      document.getElementById('btnSales').classList.toggle('active', tab==='sales');
+      document.getElementById('btnSchedule').classList.toggle('active', tab==='schedule');
+      document.getElementById('salesPanel').style.display = (tab==='sales')?'block':'none';
+      document.getElementById('calendarSection').style.display = (tab==='schedule')?'block':'none';
+      // 방문일정관리 진입 시 오늘 날짜로 선택
+      if (tab === 'schedule') {
+        if (!window.calendarInitialized) {
+          initCalendar();
+          window.calendarInitialized = true;
+        }
+        // 오늘 날짜를 기본 선택
+        selectDate(new Date().toISOString().slice(0,10));
+        // 캘린더를 오늘 날짜로 이동
+        if (window.calendarObj) {
+          window.calendarObj.gotoDate(new Date());
+        }
+      }
+    }
+
+    // ---- 영업관리(생략, 이전과 동일)
+    let filter = '소장';
+    let contactList = [];
+    let siteTags = [];
+    let memoTags = [];
+    let editIdx = null;
+    let editRow = {};
+
+    function setFilter(pos) {
+      filter = pos;
+      document.getElementById('filterSojang').classList.toggle('active', pos==='소장');
+      document.getElementById('filterGongmu').classList.toggle('active', pos==='공무');
+      renderTable();
+    }
+    function addSiteTag() {
+      const siteInput = document.getElementById('inputSite');
+      const site = siteInput.value.trim();
+      if (site && !siteTags.includes(site)) {
+        siteTags.push(site);
+        siteInput.value = '';
+        renderSiteTags();
+      }
+    }
+    function addMemoTag() {
+      const memoInput = document.getElementById('inputMemo');
+      const memo = memoInput.value.trim();
+      if (memo && !memoTags.includes(memo)) {
+        memoTags.push(memo);
+        memoInput.value = '';
+        renderMemoTags();
+      }
+    }
+    function removeSiteTag(idx) { siteTags.splice(idx, 1); renderSiteTags(); }
+    function removeMemoTag(idx) { memoTags.splice(idx, 1); renderMemoTags(); }
+    function renderSiteTags() {
+      const list = document.getElementById('siteTagList');
+      list.innerHTML = siteTags.map((s, i) =>
+        `<span class="site-tag">${s}<span class="remove" onclick="removeSiteTag(${i})">&times;</span></span>`
+      ).join('');
+    }
+    function renderMemoTags() {
+      const list = document.getElementById('memoTagList');
+      list.innerHTML = memoTags.map((s, i) =>
+        `<span class="memo-tag">${s}<span class="remove" onclick="removeMemoTag(${i})">&times;</span></span>`
+      ).join('');
+    }
+    function addContact() {
+      const company = document.getElementById('inputCompany').value.trim();
+      const position = document.getElementById('inputPosition').value;
+      const name = document.getElementById('inputName').value.trim();
+      const phone = document.getElementById('inputPhone').value.trim();
+      const email = document.getElementById('inputEmail').value.trim();
+      if (!company || !name) {
+        alert('회사명과 이름을 입력하세요.');
+        return;
+      }
+      contactList.push({
+        company, position, name, phone, email,
+        sites: [...siteTags], memos: [...memoTags]
+      });
+      document.getElementById('inputCompany').value = '';
+      document.getElementById('inputName').value = '';
+      document.getElementById('inputPhone').value = '';
+      document.getElementById('inputEmail').value = '';
+      siteTags = [];
+      memoTags = [];
+      renderSiteTags();
+      renderMemoTags();
+      renderTable();
+    }
+    function onEdit(idx) {
+      editIdx = idx;
+      editRow = {...contactList[idx], sites:[...contactList[idx].sites], memos:[...contactList[idx].memos]};
+      renderTable();
+    }
+    function onCancelEdit() { editIdx = null; editRow = {}; renderTable(); }
+    function onSaveEdit(idx) {
+      contactList[idx] = {...editRow, sites:[...editRow.sites], memos:[...editRow.memos]};
+      editIdx = null; editRow = {}; renderTable();
+    }
+    function onDelete(idx) {
+      if (confirm('정말 삭제할까요?')) { contactList.splice(idx, 1); renderTable(); }
+    }
+    function onEditSiteAdd() {
+      const input = document.getElementById('editSiteInput');
+      const v = input.value.trim();
+      if(v && !editRow.sites.includes(v)) { editRow.sites.push(v); input.value = ''; renderTable(); }
+    }
+    function onEditSiteRemove(sidx) { editRow.sites.splice(sidx, 1); renderTable(); }
+    function onEditMemoAdd() {
+      const input = document.getElementById('editMemoInput');
+      const v = input.value.trim();
+      if(v && !editRow.memos.includes(v)) { editRow.memos.push(v); input.value = ''; renderTable(); }
+    }
+    function onEditMemoRemove(sidx) { editRow.memos.splice(sidx, 1); renderTable(); }
+    function renderTable() {
+      const body = document.getElementById('contactTableBody');
+      const search = document.getElementById('companySearch').value.trim();
+      let filtered = contactList.filter(c => c.position === filter);
+      if (search) filtered = filtered.filter(c => c.company.includes(search));
+      body.innerHTML = filtered.map((c, idx) => {
+        if(editIdx !== null && contactList.indexOf(c) === editIdx){
+          return `<tr>
+            <td><input value="${editRow.company}" onchange="editRow.company=this.value"></td>
+            <td>
+              <select onchange="editRow.position=this.value">
+                <option value="소장" ${editRow.position==="소장"?"selected":""}>소장</option>
+                <option value="공무" ${editRow.position==="공무"?"selected":""}>공무</option>
+              </select>
+            </td>
+            <td><input value="${editRow.name}" onchange="editRow.name=this.value"></td>
+            <td class="phone"><input value="${editRow.phone}" onchange="editRow.phone=this.value" style="width:90px;"></td>
+            <td class="email"><input value="${editRow.email}" onchange="editRow.email=this.value" style="width:90px;"></td>
+            <td class="sites">
+              <div class="edit-tags-list">
+                ${editRow.sites.map((s, i) => `<span class="tag-edit">${s}<span class="remove" onclick="onEditSiteRemove(${i})">&times;</span></span>`).join('')}
+                <input id="editSiteInput" class="edit-tag-input" placeholder="추가" onkeydown="if(event.key==='Enter'){onEditSiteAdd();return false;}">
+                <button class="add-site-btn" onclick="onEditSiteAdd()">+추가</button>
+              </div>
+            </td>
+            <td class="memos">
+              <div class="edit-tags-list">
+                ${editRow.memos.map((s, i) => `<span class="tag-edit">${s}<span class="remove" onclick="onEditMemoRemove(${i})">&times;</span></span>`).join('')}
+                <input id="editMemoInput" class="edit-tag-input" placeholder="비고추가" onkeydown="if(event.key==='Enter'){onEditMemoAdd();return false;}">
+                <button class="add-memo-btn" onclick="onEditMemoAdd()">+추가</button>
+              </div>
+            </td>
+            <td>
+              <button class="action-btn save" onclick="onSaveEdit(${contactList.indexOf(c)})">저장</button>
+              <button class="action-btn cancel" onclick="onCancelEdit()">취소</button>
+            </td>
+          </tr>`;
+        }else{
+          return `<tr>
+            <td>${c.company}</td>
+            <td>${c.position}</td>
+            <td>${c.name}</td>
+            <td class="phone">${c.phone}</td>
+            <td class="email">${c.email}</td>
+            <td class="sites">${c.sites.map(s => `<span class="site-tag">${s}</span>`).join('')}</td>
+            <td class="memos">${c.memos.map(s => `<span class="memo-tag">${s}</span>`).join('')}</td>
+            <td>
+              <button class="action-btn" onclick="onEdit(${contactList.indexOf(c)})">수정</button>
+              <button class="action-btn delete" onclick="onDelete(${contactList.indexOf(c)})">삭제</button>
+            </td>
+          </tr>`;
+        }
+      }).join('');
+    }
+    document.getElementById('companySearch').addEventListener('input', renderTable);
+    window.editRow = editRow;
+    window.onEdit = onEdit;
+    window.onCancelEdit = onCancelEdit;
+    window.onSaveEdit = onSaveEdit;
+    window.onDelete = onDelete;
+    window.onEditSiteAdd = onEditSiteAdd;
+    window.onEditSiteRemove = onEditSiteRemove;
+    window.onEditMemoAdd = onEditMemoAdd;
+    window.onEditMemoRemove = onEditMemoRemove;
+    renderTable();
+    renderSiteTags();
+    renderMemoTags();
+
+    // ---- 방문일정관리 (캘린더+리스트)
+    let visitEvents = [];
+    let calendarObj = null;
+    let selectedDate = null;
+    let visitEditIdx = null;
+
+    function initCalendar() {
+      if (calendarObj) return;
+      calendarObj = new FullCalendar.Calendar(document.getElementById('calendarContainer'), {
+        initialView: 'dayGridMonth', locale: 'ko', height: 600,
+        dateClick: info => {
+          selectDate(info.dateStr);
+          calendarObj.gotoDate(info.dateStr);
+        },
+        events: visitEvents
+      });
+      calendarObj.render();
+      document.getElementById('addBtn').onclick = () => saveEvent();
+    }
+
+    function selectDate(dateStr) {
+      selectedDate = dateStr;
+      visitEditIdx = null;
+      document.getElementById('panelTitle').textContent = dateStr + ' 일정 등록';
+      document.getElementById('calSite').value = '';
+      document.getElementById('calAddr').value = '';
+      document.getElementById('calDesc').value = '';
+      document.getElementById('calGap').value = '5';
+      document.getElementById('addBtn').textContent = '일정추가';
+      renderLists();
+    }
+
+    function saveEvent() {
+      if (!selectedDate) return alert('날짜를 먼저 선택하세요.');
+      const site = document.getElementById('calSite').value.trim();
+      const addr = document.getElementById('calAddr').value.trim();
+      const desc = document.getElementById('calDesc').value.trim();
+      const gap = parseInt(document.getElementById('calGap').value);
+
+      const visits = visitEvents.filter(e => e.start === selectedDate && e.type === 'visit');
+      if (visitEditIdx === null && visits.length >= 10) {
+        alert('한 날짜에 10개까지만 등록 가능합니다.');
+        return;
+      }
+
+      if (visitEditIdx !== null) {
+        const visitEv = visits[visitEditIdx];
+        if (visitEv) {
+          const prevSite = visitEv.site, prevAddr = visitEv.addr;
+          visitEv.site = site;
+          visitEv.addr = addr;
+          visitEv.desc = desc;
+          visitEv.title = '방문: ' + site;
+          visitEvents.forEach(ev => {
+            if (
+              ev.type === 'revisit' &&
+              ev.site === prevSite &&
+              ev.addr === prevAddr
+            ) {
+              ev.site = site;
+              ev.addr = addr;
+              ev.desc = '[재방문] ' + desc;
+              ev.title = '재방문: ' + site;
+            }
+          });
+        }
+        visitEditIdx = null;
+        document.getElementById('addBtn').textContent = '일정추가';
+      } else {
+        visitEvents.push({
+          title: '방문: ' + site,
+          start: selectedDate,
+          site, addr, desc, type: 'visit'
+        });
+        let revisitDate = new Date(selectedDate);
+        revisitDate.setMonth(revisitDate.getMonth() + gap);
+        const revisitStr = revisitDate.toISOString().slice(0, 10);
+        visitEvents.push({
+          title: '재방문: ' + site,
+          start: revisitStr,
+          site, addr, desc: '[재방문] ' + desc, type: 'revisit'
+        });
+      }
+
+      document.getElementById('calSite').value = '';
+      document.getElementById('calAddr').value = '';
+      document.getElementById('calDesc').value = '';
+      document.getElementById('calGap').value = '5';
+      calendarObj.removeAllEvents();
+      visitEvents.forEach(e => calendarObj.addEvent(e));
+      renderLists();
+    }
+
+    function editVisit(idx) {
+      const visits = visitEvents.filter(e => e.start === selectedDate && e.type === 'visit');
+      const ev = visits[idx];
+      if (!ev) return;
+      document.getElementById('calSite').value = ev.site;
+      document.getElementById('calAddr').value = ev.addr;
+      document.getElementById('calDesc').value = ev.desc;
+      document.getElementById('addBtn').textContent = '수정저장';
+      visitEditIdx = idx;
+    }
+
+    function deleteVisit(idx) {
+      const visits = visitEvents.filter(e => e.start === selectedDate && e.type === 'visit');
+      const ev = visits[idx];
+      if (!ev) return;
+      visitEvents = visitEvents.filter(e => e !== ev);
+      visitEvents = visitEvents.filter(e => !(e.type === 'revisit' && e.site === ev.site && e.addr === ev.addr));
+      calendarObj.removeAllEvents();
+      visitEvents.forEach(e => calendarObj.addEvent(e));
+      renderLists();
+    }
+
+    function deleteRevisit(idx) {
+      const revisits = visitEvents.filter(e => e.start === selectedDate && e.type === 'revisit');
+      const ev = revisits[idx];
+      if (!ev) return;
+      visitEvents = visitEvents.filter(e => e !== ev);
+      calendarObj.removeAllEvents();
+      visitEvents.forEach(e => calendarObj.addEvent(e));
+      renderLists();
+    }
+
+    function renderLists() {
+      const vList = document.getElementById('visitList');
+      const rList = document.getElementById('revisitList');
+      const visits = visitEvents.filter(e => e.start === selectedDate && e.type === 'visit');
+      const revisits = visitEvents.filter(e => e.start === selectedDate && e.type === 'revisit');
+      vList.innerHTML = visits.length ? visits.map((e, i) =>
+        `<li>
+          ${e.title} / ${e.addr} / ${e.desc}
+          <button class="cal-btn blue" onclick="editVisit(${i})">수정</button>
+          <button class="cal-btn red" onclick="deleteVisit(${i})">삭제</button>
+        </li>`
+      ).join('') : '<li>없음</li>';
+      rList.innerHTML = revisits.length ? revisits.map((e, i) =>
+        `<li>
+          ${e.title} / ${e.addr} / ${e.desc}
+          <button class="cal-btn red" onclick="deleteRevisit(${i})">삭제</button>
+        </li>`
+      ).join('') : '<li>없음</li>';
+      document.getElementById('visitCount').textContent = visits.length;
+      document.getElementById('revisitCount').textContent = revisits.length;
+    }
+
+    // 최초 진입시 '영업관리' → '방문 일정 관리' 순 자동 실행을 위해 DOMContentLoaded에서 한 번 실행
+    document.addEventListener('DOMContentLoaded', () => {
+      switchTab('sales');
+    });
+  </script>
+</body>
+</html>
