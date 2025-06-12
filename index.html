@@ -68,6 +68,14 @@
     .cal-btn { background: #eaf1ff; color: #1462ff; border: none; border-radius: 5px; font-size: 0.82em !important; padding: 3px 8px !important; margin-left: 4px; cursor: pointer; vertical-align: middle;}
     .cal-btn.red { color: #fff; background: #ff8686; }
     .cal-btn.blue { color: #fff; background: #1462ff; }
+    /* 일정 수정 모달 스타일 */
+    #visitEditModal { display:none;position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:999;
+      background:rgba(0,0,0,0.33);align-items:center;justify-content:center;}
+    #visitEditModal .modal-inner {
+      background:#fff; border-radius:16px; box-shadow:0 4px 40px #0004; padding:32px 28px; min-width:320px; max-width:90vw; position:relative;
+      animation:popupIn .2s cubic-bezier(.4,2,.5,1);
+    }
+    @keyframes popupIn { from { transform:scale(.96); opacity:.5 } to { transform:scale(1); opacity:1 } }
   </style>
 </head>
 <body>
@@ -153,14 +161,33 @@
       </div>
     </div>
   </div>
+  
+  <!-- 일정 수정 모달 -->
+  <div id="visitEditModal">
+    <div class="modal-inner">
+      <h2 style="margin-top:0;margin-bottom:18px;">일정 수정</h2>
+      <label>현장명</label>
+      <input id="editSite" style="width:100%;margin-bottom:8px;">
+      <label>주소</label>
+      <input id="editAddr" style="width:100%;margin-bottom:8px;">
+      <label>내용/메모</label>
+      <textarea id="editDesc" style="width:100%;min-height:60px;margin-bottom:8px;"></textarea>
+      <div style="text-align:right;margin-top:8px;">
+        <button onclick="saveVisitEdit()" style="background:#1462ff;color:#fff;border:none;border-radius:6px;padding:7px 20px;margin-right:6px;cursor:pointer;">저장</button>
+        <button onclick="closeVisitEditModal()" style="background:#aaa;color:#fff;border:none;border-radius:6px;padding:7px 20px;cursor:pointer;">취소</button>
+      </div>
+      <span onclick="closeVisitEditModal()" style="position:absolute;right:18px;top:14px;cursor:pointer;font-size:22px;color:#888;">&times;</span>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <script>
     // ====== Firebase 설정 (여기만 네 값으로!) ======
     const firebaseConfig = {
       apiKey: "AIzaSyCSF8jLDggcTTP5nX6SWOVsWAZTtDeYxa8",
-      authDomain: "shinhan-97566.appspot.com",
+      authDomain: "shinhan-97566.firebaseapp.com",
       projectId: "shinhan-97566",
-      storageBucket: "shinhan-97566.firebasestorage.app",
+      storageBucket: "shinhan-97566.appspot.com",  // ← 고쳐서 사용!
       messagingSenderId: "1038811138348",
       appId: "1:1038811138348:web:7361614dce4833c9180489"
     };
@@ -431,7 +458,39 @@
       document.getElementById('calGap').value = '5';
     }
 
-    function editVisit(idx) { /* Firestore에서 편집 구현 필요(필요하면 추가 가능) */ }
+    // --- 일정 수정 모달 관련 함수 ---
+    let editingVisitId = null;
+    function openVisitEditModal(eventObj) {
+      editingVisitId = eventObj.id;
+      document.getElementById('editSite').value = eventObj.site || '';
+      document.getElementById('editAddr').value = eventObj.addr || '';
+      document.getElementById('editDesc').value = eventObj.desc || '';
+      document.getElementById('visitEditModal').style.display = 'flex';
+    }
+    function closeVisitEditModal() {
+      editingVisitId = null;
+      document.getElementById('visitEditModal').style.display = 'none';
+    }
+    function saveVisitEdit() {
+      const site = document.getElementById('editSite').value.trim();
+      const addr = document.getElementById('editAddr').value.trim();
+      const desc = document.getElementById('editDesc').value.trim();
+      if (!editingVisitId) return;
+      // Firestore 문서 업데이트
+      db.collection("visits").doc(editingVisitId).update({
+        site, addr, desc,
+        title: (desc && desc.startsWith('[재방문]') ? '재방문: ' : '방문: ') + site
+      }).then(() => {
+        closeVisitEditModal();
+      });
+    }
+
+    function editVisit(idx) {
+      const visits = visitEvents.filter(e => e.start === selectedDate && e.type === 'visit');
+      const ev = visits[idx];
+      if (!ev) return;
+      openVisitEditModal(ev);
+    }
     function deleteVisit(idx) {
       const visits = visitEvents.filter(e => e.start === selectedDate && e.type === 'visit');
       const ev = visits[idx];
