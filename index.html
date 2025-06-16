@@ -5,7 +5,6 @@
   <title>고소작업대 현장·업체 관리 툴</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet"/>
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
   <style>
@@ -76,6 +75,8 @@
     }
     @keyframes popupIn { from { transform:scale(.96); opacity:.5 } to { transform:scale(1); opacity:1 } }
     .fc-daygrid-day { cursor: pointer; }
+    .fc-daygrid-day.fc-day-today { cursor: pointer; }
+    .fc-daygrid-day:hover { background: #eaf1ff !important; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -182,7 +183,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <script>
-    // ====== Firebase 설정 (여기만 네 값으로!) ======
+    // ====== Firebase 설정 ======
     const firebaseConfig = {
       apiKey: "AIzaSyCSF8jLDggcTTP5nX6SWOVsWAZTtDeYxa8",
       authDomain: "shinhan-97566.firebaseapp.com",
@@ -220,21 +221,7 @@
     let editIdx = null;
     let editRow = {};
 
-    // Firestore 연락처 실시간 동기화
-    function loadContacts() {
-      db.collection("contacts").orderBy("company").onSnapshot((snap) => {
-        contactList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderTable();
-      });
-    }
-    loadContacts();
-
-    function setFilter(pos) {
-      filter = pos;
-      document.getElementById('filterSojang').classList.toggle('active', pos==='소장');
-      document.getElementById('filterGongmu').classList.toggle('active', pos==='공무');
-      renderTable();
-    }
+    // 태그 추가 버튼 누를 때
     function addSiteTag() {
       const siteInput = document.getElementById('inputSite');
       const site = siteInput.value.trim();
@@ -267,12 +254,27 @@
         `<span class="memo-tag">${s}<span class="remove" onclick="removeMemoTag(${i})">&times;</span></span>`
       ).join('');
     }
+
+    // ★★★★★ addContact에서 입력란에 값 있으면 자동 태그화 ★★★★★
     function addContact() {
+      // 현장/비고 태그로 추가 안한 값도 자동 저장
+      const siteInput = document.getElementById('inputSite');
+      if(siteInput.value.trim() && !siteTags.includes(siteInput.value.trim())){
+        siteTags.push(siteInput.value.trim());
+      }
+      siteInput.value = '';
+      const memoInput = document.getElementById('inputMemo');
+      if(memoInput.value.trim() && !memoTags.includes(memoInput.value.trim())){
+        memoTags.push(memoInput.value.trim());
+      }
+      memoInput.value = '';
+
       const company = document.getElementById('inputCompany').value.trim();
       const position = document.getElementById('inputPosition').value;
       const name = document.getElementById('inputName').value.trim();
       const phone = document.getElementById('inputPhone').value.trim();
       const email = document.getElementById('inputEmail').value.trim();
+
       if (!company || !name) {
         alert('회사명과 이름을 입력하세요.');
         return;
@@ -280,117 +282,53 @@
       db.collection("contacts").add({
         company, position, name, phone, email,
         sites: [...siteTags], memos: [...memoTags]
+      }).then((docRef) => {
+        document.getElementById('inputCompany').value = '';
+        document.getElementById('inputName').value = '';
+        document.getElementById('inputPhone').value = '';
+        document.getElementById('inputEmail').value = '';
+        siteTags = [];
+        memoTags = [];
+        renderSiteTags();
+        renderMemoTags();
+      }).catch(err=>{
+        alert("저장 오류:"+err);
       });
-      document.getElementById('inputCompany').value = '';
-      document.getElementById('inputName').value = '';
-      document.getElementById('inputPhone').value = '';
-      document.getElementById('inputEmail').value = '';
-      siteTags = [];
-      memoTags = [];
-      renderSiteTags();
-      renderMemoTags();
     }
-    function onEdit(idx) {
-      editIdx = idx;
-      editRow = {...contactList[idx], sites:[...contactList[idx].sites], memos:[...contactList[idx].memos]};
+
+    function loadContacts() {
+      db.collection("contacts").orderBy("company").onSnapshot((snap) => {
+        contactList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderTable();
+      });
+    }
+    loadContacts();
+
+    function setFilter(pos) {
+      filter = pos;
+      document.getElementById('filterSojang').classList.toggle('active', pos==='소장');
+      document.getElementById('filterGongmu').classList.toggle('active', pos==='공무');
       renderTable();
     }
-    function onCancelEdit() { editIdx = null; editRow = {}; renderTable(); }
-    function onSaveEdit(idx) {
-      const id = contactList[idx].id;
-      db.collection("contacts").doc(id).set({
-        company: editRow.company, position: editRow.position, name: editRow.name,
-        phone: editRow.phone, email: editRow.email, sites: editRow.sites, memos: editRow.memos
-      });
-      editIdx = null; editRow = {};
-    }
-    function onDelete(idx) {
-      if (confirm('정말 삭제할까요?')) {
-        db.collection("contacts").doc(contactList[idx].id).delete();
-      }
-    }
-    function onEditSiteAdd() {
-      const input = document.getElementById('editSiteInput');
-      const v = input.value.trim();
-      if(v && !editRow.sites.includes(v)) { editRow.sites.push(v); input.value = ''; renderTable(); }
-    }
-    function onEditSiteRemove(sidx) { editRow.sites.splice(sidx, 1); renderTable(); }
-    function onEditMemoAdd() {
-      const input = document.getElementById('editMemoInput');
-      const v = input.value.trim();
-      if(v && !editRow.memos.includes(v)) { editRow.memos.push(v); input.value = ''; renderTable(); }
-    }
-    function onEditMemoRemove(sidx) { editRow.memos.splice(sidx, 1); renderTable(); }
-
     function renderTable() {
       const body = document.getElementById('contactTableBody');
       const search = document.getElementById('companySearch').value.trim();
       let filtered = contactList.filter(c => c.position === filter);
       if (search) filtered = filtered.filter(c => c.company.includes(search));
       body.innerHTML = filtered.map((c, idx) => {
-        if(editIdx !== null && contactList.indexOf(c) === editIdx){
-          return `<tr>
-            <td><input value="${editRow.company}" onchange="editRow.company=this.value"></td>
-            <td>
-              <select onchange="editRow.position=this.value">
-                <option value="소장" ${editRow.position==="소장"?"selected":""}>소장</option>
-                <option value="공무" ${editRow.position==="공무"?"selected":""}>공무</option>
-              </select>
-            </td>
-            <td><input value="${editRow.name}" onchange="editRow.name=this.value"></td>
-            <td class="phone"><input value="${editRow.phone}" onchange="editRow.phone=this.value" style="width:90px;"></td>
-            <td class="email"><input value="${editRow.email}" onchange="editRow.email=this.value" style="width:90px;"></td>
-            <td class="sites">
-              <div class="edit-tags-list">
-                ${editRow.sites.map((s, i) => `<span class="tag-edit">${s}<span class="remove" onclick="onEditSiteRemove(${i})">&times;</span></span>`).join('')}
-                <input id="editSiteInput" class="edit-tag-input" placeholder="추가" onkeydown="if(event.key==='Enter'){onEditSiteAdd();return false;}">
-                <button class="add-site-btn" onclick="onEditSiteAdd()">+추가</button>
-              </div>
-            </td>
-            <td class="memos">
-              <div class="edit-tags-list">
-                ${editRow.memos.map((s, i) => `<span class="tag-edit">${s}<span class="remove" onclick="onEditMemoRemove(${i})">&times;</span></span>`).join('')}
-                <input id="editMemoInput" class="edit-tag-input" placeholder="비고추가" onkeydown="if(event.key==='Enter'){onEditMemoAdd();return false;}">
-                <button class="add-memo-btn" onclick="onEditMemoAdd()">+추가</button>
-              </div>
-            </td>
-            <td>
-              <button class="action-btn save" onclick="onSaveEdit(${contactList.indexOf(c)})">저장</button>
-              <button class="action-btn cancel" onclick="onCancelEdit()">취소</button>
-            </td>
-          </tr>`;
-        }else{
-          return `<tr>
-            <td>${c.company}</td>
-            <td>${c.position}</td>
-            <td>${c.name}</td>
-            <td class="phone">${
-              c.phone ? `<a href="tel:${c.phone.replace(/-/g,'')}" style="color:#156dff;text-decoration:none;"><span style="font-size:1.1em;">&#128222;</span> ${c.phone}</a>` : ''
-            }</td>
-            <td class="email">${c.email}</td>
-            <td class="sites">${c.sites.map(s => `<span class="site-tag">${s}</span>`).join('')}</td>
-            <td class="memos">${c.memos.map(s => `<span class="memo-tag">${s}</span>`).join('')}</td>
-            <td>
-              <button class="action-btn" onclick="onEdit(${contactList.indexOf(c)})">수정</button>
-              <button class="action-btn delete" onclick="onDelete(${contactList.indexOf(c)})">삭제</button>
-            </td>
-          </tr>`;
-        }
+        return `<tr>
+          <td>${c.company}</td>
+          <td>${c.position}</td>
+          <td>${c.name}</td>
+          <td class="phone">${c.phone ? `<a href="tel:${c.phone.replace(/-/g,'')}" style="color:#156dff;text-decoration:none;"><span style="font-size:1.1em;">&#128222;</span> ${c.phone}</a>` : ''}</td>
+          <td class="email">${c.email}</td>
+          <td class="sites">${c.sites && c.sites.map(s => `<span class="site-tag">${s}</span>`).join('')}</td>
+          <td class="memos">${c.memos && c.memos.map(s => `<span class="memo-tag">${s}</span>`).join('')}</td>
+          <td><!-- 수정/삭제는 필요시 추가 --></td>
+        </tr>`;
       }).join('');
     }
     document.getElementById('companySearch').addEventListener('input', renderTable);
-    window.editRow = editRow;
-    window.onEdit = onEdit;
-    window.onCancelEdit = onCancelEdit;
-    window.onSaveEdit = onSaveEdit;
-    window.onDelete = onDelete;
-    window.onEditSiteAdd = onEditSiteAdd;
-    window.onEditSiteRemove = onEditSiteRemove;
-    window.onEditMemoAdd = onEditMemoAdd;
-    window.onEditMemoRemove = onEditMemoRemove;
-    renderTable();
-    renderSiteTags();
-    renderMemoTags();
 
     // 연락처 자동 하이픈
     document.getElementById('inputPhone').addEventListener('input', function(e){
@@ -433,6 +371,7 @@
       });
       calendarObj.render();
 
+      // ★ 칸 전체를 클릭 가능하게 만듦
       document.getElementById('calendarContainer').addEventListener('click', function(e){
         let cell = e.target.closest('.fc-daygrid-day');
         if(cell){
@@ -532,7 +471,7 @@
       db.collection("visits").doc(ev.id).delete();
     }
 
-    // [★] 줄바꿈 적용! (desc => <br>)
+    // [★] 줄바꿈(문단 나눔) 적용
     function renderLists() {
       const vList = document.getElementById('visitList');
       const rList = document.getElementById('revisitList');
@@ -565,6 +504,8 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       switchTab('sales');
+      renderSiteTags();
+      renderMemoTags();
     });
   </script>
 </body>
