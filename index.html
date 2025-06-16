@@ -76,6 +76,8 @@
       animation:popupIn .2s cubic-bezier(.4,2,.5,1);
     }
     @keyframes popupIn { from { transform:scale(.96); opacity:.5 } to { transform:scale(1); opacity:1 } }
+    /* FullCalendar 날짜칸 손가락 커서 */
+    .fc-daygrid-day { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -187,7 +189,7 @@
       apiKey: "AIzaSyCSF8jLDggcTTP5nX6SWOVsWAZTtDeYxa8",
       authDomain: "shinhan-97566.firebaseapp.com",
       projectId: "shinhan-97566",
-      storageBucket: "shinhan-97566.appspot.com",  // ← 고쳐서 사용!
+      storageBucket: "shinhan-97566.appspot.com",
       messagingSenderId: "1038811138348",
       appId: "1:1038811138348:web:7361614dce4833c9180489"
     };
@@ -321,6 +323,7 @@
       if(v && !editRow.memos.includes(v)) { editRow.memos.push(v); input.value = ''; renderTable(); }
     }
     function onEditMemoRemove(sidx) { editRow.memos.splice(sidx, 1); renderTable(); }
+
     function renderTable() {
       const body = document.getElementById('contactTableBody');
       const search = document.getElementById('companySearch').value.trim();
@@ -363,7 +366,9 @@
             <td>${c.company}</td>
             <td>${c.position}</td>
             <td>${c.name}</td>
-            <td class="phone">${c.phone}</td>
+            <td class="phone">${
+              c.phone ? `<a href="tel:${c.phone.replace(/-/g,'')}" style="color:#156dff;text-decoration:none;"><span style="font-size:1.1em;">&#128222;</span> ${c.phone}</a>` : ''
+            }</td>
             <td class="email">${c.email}</td>
             <td class="sites">${c.sites.map(s => `<span class="site-tag">${s}</span>`).join('')}</td>
             <td class="memos">${c.memos.map(s => `<span class="memo-tag">${s}</span>`).join('')}</td>
@@ -388,6 +393,18 @@
     renderTable();
     renderSiteTags();
     renderMemoTags();
+
+    // 연락처 자동 하이픈
+    document.getElementById('inputPhone').addEventListener('input', function(e){
+      let v = e.target.value.replace(/\D/g,'').slice(0,11);
+      if(v.length === 11){
+        e.target.value = v.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+      } else if (v.length === 10) {
+        e.target.value = v.replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3');
+      } else {
+        e.target.value = v;
+      }
+    });
 
     // ==== 방문 일정관리 영역 ====
     let visitEvents = [];
@@ -417,6 +434,19 @@
         events: []
       });
       calendarObj.render();
+
+      // 날짜칸 전체 클릭 (히트박스)
+      document.getElementById('calendarContainer').addEventListener('click', function(e){
+        let cell = e.target.closest('.fc-daygrid-day');
+        if(cell){
+          let dateStr = cell.getAttribute('data-date');
+          if(dateStr){
+            selectDate(dateStr);
+            calendarObj.gotoDate(dateStr);
+          }
+        }
+      });
+
       document.getElementById('addBtn').onclick = () => saveEvent();
       loadVisits();
     }
@@ -512,16 +542,24 @@
       const visits = visitEvents.filter(e => e.start === selectedDate && e.type === 'visit');
       const revisits = visitEvents.filter(e => e.start === selectedDate && e.type === 'revisit');
       vList.innerHTML = visits.length ? visits.map((e, i) =>
-        `<li>
-          ${e.title} / ${e.addr} / ${e.desc}
-          <button class="cal-btn blue" onclick="editVisit(${i})">수정</button>
-          <button class="cal-btn red" onclick="deleteVisit(${i})">삭제</button>
+        `<li style="margin-bottom:8px;">
+          <strong>현장명:</strong> ${e.site}<br>
+          <strong>주소:</strong> ${e.addr}<br>
+          <strong>메모:</strong> ${e.desc}
+          <div style="margin-top:4px;">
+            <button class="cal-btn blue" onclick="editVisit(${i})">수정</button>
+            <button class="cal-btn red" onclick="deleteVisit(${i})">삭제</button>
+          </div>
         </li>`
       ).join('') : '<li>없음</li>';
       rList.innerHTML = revisits.length ? revisits.map((e, i) =>
-        `<li>
-          ${e.title} / ${e.addr} / ${e.desc}
-          <button class="cal-btn red" onclick="deleteRevisit(${i})">삭제</button>
+        `<li style="margin-bottom:8px;">
+          <strong>현장명:</strong> ${e.site}<br>
+          <strong>주소:</strong> ${e.addr}<br>
+          <strong>메모:</strong> ${e.desc}
+          <div style="margin-top:4px;">
+            <button class="cal-btn red" onclick="deleteRevisit(${i})">삭제</button>
+          </div>
         </li>`
       ).join('') : '<li>없음</li>';
       document.getElementById('visitCount').textContent = visits.length;
@@ -534,3 +572,4 @@
   </script>
 </body>
 </html>
+
