@@ -5,7 +5,7 @@
   <title>고소작업대 현장·업체 관리 툴</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet"/>
-  <!-- Firebase SDK 추가 -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
   <style>
@@ -68,7 +68,6 @@
     .cal-btn { background: #eaf1ff; color: #1462ff; border: none; border-radius: 5px; font-size: 0.82em !important; padding: 3px 8px !important; margin-left: 4px; cursor: pointer; vertical-align: middle;}
     .cal-btn.red { color: #fff; background: #ff8686; }
     .cal-btn.blue { color: #fff; background: #1462ff; }
-    /* 일정 수정 모달 스타일 */
     #visitEditModal { display:none;position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:999;
       background:rgba(0,0,0,0.33);align-items:center;justify-content:center;}
     #visitEditModal .modal-inner {
@@ -76,7 +75,6 @@
       animation:popupIn .2s cubic-bezier(.4,2,.5,1);
     }
     @keyframes popupIn { from { transform:scale(.96); opacity:.5 } to { transform:scale(1); opacity:1 } }
-    /* FullCalendar 날짜칸 손가락 커서 */
     .fc-daygrid-day { cursor: pointer; }
   </style>
 </head>
@@ -435,7 +433,6 @@
       });
       calendarObj.render();
 
-      // 날짜칸 전체 클릭 (히트박스)
       document.getElementById('calendarContainer').addEventListener('click', function(e){
         let cell = e.target.closest('.fc-daygrid-day');
         if(cell){
@@ -506,7 +503,6 @@
       const addr = document.getElementById('editAddr').value.trim();
       const desc = document.getElementById('editDesc').value.trim();
       if (!editingVisitId) return;
-      // Firestore 문서 업데이트
       db.collection("visits").doc(editingVisitId).update({
         site, addr, desc,
         title: (desc && desc.startsWith('[재방문]') ? '재방문: ' : '방문: ') + site
@@ -536,6 +532,7 @@
       db.collection("visits").doc(ev.id).delete();
     }
 
+    // [★] 줄바꿈 적용! (desc => <br>)
     function renderLists() {
       const vList = document.getElementById('visitList');
       const rList = document.getElementById('revisitList');
@@ -545,7 +542,7 @@
         `<li style="margin-bottom:8px;">
           <strong>현장명:</strong> ${e.site}<br>
           <strong>주소:</strong> ${e.addr}<br>
-          <strong>메모:</strong> ${e.desc}
+          <strong>메모:</strong> <span style="white-space:pre-line;">${(e.desc||'').replace(/\n/g,'<br>')}</span>
           <div style="margin-top:4px;">
             <button class="cal-btn blue" onclick="editVisit(${i})">수정</button>
             <button class="cal-btn red" onclick="deleteVisit(${i})">삭제</button>
@@ -556,7 +553,7 @@
         `<li style="margin-bottom:8px;">
           <strong>현장명:</strong> ${e.site}<br>
           <strong>주소:</strong> ${e.addr}<br>
-          <strong>메모:</strong> ${e.desc}
+          <strong>메모:</strong> <span style="white-space:pre-line;">${(e.desc||'').replace(/\n/g,'<br>')}</span>
           <div style="margin-top:4px;">
             <button class="cal-btn red" onclick="deleteRevisit(${i})">삭제</button>
           </div>
@@ -572,4 +569,3 @@
   </script>
 </body>
 </html>
-
